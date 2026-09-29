@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## Project
 
-A Python project, currently in its initial setup stage (no source code yet).
+A Python project that also contains Salesforce DX source under `force-app/` (see `sfdx-project.json`).
 
 ## Environment
 
@@ -21,3 +21,9 @@ A Python project, currently in its initial setup stage (no source code yet).
 
 - Default branch: `main`.
 - Never commit secrets, `.env` files, or virtual environments.
+
+## Salesforce
+
+- `ContactTrigger` + `ContactTriggerHandler` keep `Account.Number_of_Contacts__c` in sync on Contact insert, update (Account change), delete and undelete.
+- Keep trigger logic in handler classes; triggers only dispatch.
+- Deploy with `sf project deploy start` and run tests with `sf apex run test --tests ContactTriggerHandlerTest`.
