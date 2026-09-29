@@ -1,41 +1,45 @@
 /**
- * Keeps Account.Number_of_Contacts__c in sync with the Contacts related to each Account.
+ * Keeps these Account rollups in sync with the Contacts related to each Account:
+ *   - Number_of_Contacts__c: count of Contacts
+ *   - Expected_Revenue__c:   sum of Contact.Expected_Revenue__c
  *
- * Runs without sharing so the count includes every Contact on the Account,
+ * Runs without sharing so the rollups include every Contact on the Account,
  * not just the ones visible to the running user.
  */
 public without sharing class ContactTriggerHandler {
 
     public static void onAfterInsert(List<Contact> newContacts) {
-        recalculateContactCounts(collectAccountIds(newContacts));
+        recalculateAccountRollups(collectAccountIds(newContacts));
     }
 
     public static void onAfterUpdate(List<Contact> newContacts, Map<Id, Contact> oldContactsById) {
-        // Only a change of Account affects the counts; recount both the old and the new Account.
+        // Only a change of Account or Expected Revenue affects the rollups;
+        // recount both the old and the new Account.
         Set<Id> accountIds = new Set<Id>();
         for (Contact newContact : newContacts) {
-            Id oldAccountId = oldContactsById.get(newContact.Id).AccountId;
-            if (newContact.AccountId != oldAccountId) {
+            Contact oldContact = oldContactsById.get(newContact.Id);
+            if (newContact.AccountId != oldContact.AccountId
+                    || newContact.Expected_Revenue__c != oldContact.Expected_Revenue__c) {
                 accountIds.add(newContact.AccountId);
-                accountIds.add(oldAccountId);
+                accountIds.add(oldContact.AccountId);
             }
         }
-        recalculateContactCounts(accountIds);
+        recalculateAccountRollups(accountIds);
     }
 
     public static void onAfterDelete(List<Contact> oldContacts) {
-        recalculateContactCounts(collectAccountIds(oldContacts));
+        recalculateAccountRollups(collectAccountIds(oldContacts));
     }
 
     public static void onAfterUndelete(List<Contact> restoredContacts) {
-        recalculateContactCounts(collectAccountIds(restoredContacts));
+        recalculateAccountRollups(collectAccountIds(restoredContacts));
     }
 
     /**
-     * Recounts Contacts from the database rather than incrementing/decrementing,
-     * so the value self-corrects if it ever drifts.
+     * Recalculates rollups from the database rather than incrementing/decrementing,
+     * so the values self-correct if they ever drift.
      */
-    public static void recalculateContactCounts(Set<Id> accountIds) {
+    public static void recalculateAccountRollups(Set<Id> accountIds) {
         accountIds.remove(null);
         if (accountIds.isEmpty()) {
             return;
@@ -44,17 +48,24 @@ public without sharing class ContactTriggerHandler {
         // Default every Account to 0 so Accounts that lost their last Contact are reset.
         Map<Id, Account> accountsById = new Map<Id, Account>();
         for (Id accountId : accountIds) {
-            accountsById.put(accountId, new Account(Id = accountId, Number_of_Contacts__c = 0));
+            accountsById.put(accountId, new Account(
+                Id = accountId,
+                Number_of_Contacts__c = 0,
+                Expected_Revenue__c = 0
+            ));
         }
 
         for (AggregateResult result : [
-            SELECT AccountId, COUNT(Id) contactCount
+            SELECT AccountId, COUNT(Id) contactCount, SUM(Expected_Revenue__c) expectedRevenue
             FROM Contact
             WHERE AccountId IN :accountIds
             GROUP BY AccountId
         ]) {
-            Id accountId = (Id) result.get('AccountId');
-            accountsById.get(accountId).Number_of_Contacts__c = (Integer) result.get('contactCount');
+            Account account = accountsById.get((Id) result.get('AccountId'));
+            account.Number_of_Contacts__c = (Integer) result.get('contactCount');
+            // SUM is null when every Contact's Expected Revenue is blank.
+            Decimal expectedRevenue = (Decimal) result.get('expectedRevenue');
+            account.Expected_Revenue__c = expectedRevenue == null ? 0 : expectedRevenue;
         }
 
         update accountsById.values();

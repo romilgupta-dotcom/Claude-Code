@@ -1,6 +1,7 @@
 /**
- * One-off backfill of Account.Number_of_Contacts__c for existing Accounts.
- * Reuses ContactTriggerHandler so the batch and the trigger count the same way.
+ * One-off backfill of Account.Number_of_Contacts__c and Account.Expected_Revenue__c
+ * for existing Accounts. Reuses ContactTriggerHandler so the batch and the trigger
+ * calculate the same way.
  *
  * Run from Anonymous Apex:
  *     Database.executeBatch(new AccountContactCountBatch());
@@ -15,7 +16,7 @@ public without sharing class AccountContactCountBatch implements Database.Batcha
     }
 
     public void execute(Database.BatchableContext context, List<Account> accounts) {
-        ContactTriggerHandler.recalculateContactCounts(new Map<Id, Account>(accounts).keySet().clone());
+        ContactTriggerHandler.recalculateAccountRollups(new Map<Id, Account>(accounts).keySet().clone());
     }
 
     public void finish(Database.BatchableContext context) {

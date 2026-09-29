@@ -7,44 +7,94 @@ private class ContactTriggerHandlerTest {
     }
 
     private static Account getAccount(String name) {
-        return [SELECT Id, Number_of_Contacts__c FROM Account WHERE Name = :name];
+        return [SELECT Id, Number_of_Contacts__c, Expected_Revenue__c FROM Account WHERE Name = :name];
     }
 
-    private static List<Contact> buildContacts(Id accountId, Integer count) {
+    private static List<Contact> buildContacts(Id accountId, Integer count, Decimal expectedRevenue) {
         List<Contact> contacts = new List<Contact>();
         for (Integer i = 0; i < count; i++) {
-            contacts.add(new Contact(LastName = 'Test ' + i, AccountId = accountId));
+            contacts.add(new Contact(
+                LastName = 'Test ' + i,
+                AccountId = accountId,
+                Expected_Revenue__c = expectedRevenue
+            ));
         }
         return contacts;
     }
 
     @IsTest
-    static void insertIncrementsCount() {
+    static void insertRollsUpCountAndRevenue() {
         Account accountA = getAccount('Account A');
 
         Test.startTest();
-        insert buildContacts(accountA.Id, 3);
+        insert buildContacts(accountA.Id, 3, 100);
         Test.stopTest();
 
-        Assert.areEqual(3, getAccount('Account A').Number_of_Contacts__c);
+        accountA = getAccount('Account A');
+        Assert.areEqual(3, accountA.Number_of_Contacts__c);
+        Assert.areEqual(300, accountA.Expected_Revenue__c);
     }
 
     @IsTest
-    static void bulkInsertIsCounted() {
+    static void bulkInsertIsRolledUp() {
         Account accountA = getAccount('Account A');
 
         Test.startTest();
-        insert buildContacts(accountA.Id, 200);
+        insert buildContacts(accountA.Id, 200, 10);
         Test.stopTest();
 
-        Assert.areEqual(200, getAccount('Account A').Number_of_Contacts__c);
+        accountA = getAccount('Account A');
+        Assert.areEqual(200, accountA.Number_of_Contacts__c);
+        Assert.areEqual(2000, accountA.Expected_Revenue__c);
     }
 
     @IsTest
-    static void changingAccountRecountsBothAccounts() {
+    static void blankRevenueIsTreatedAsZero() {
+        Account accountA = getAccount('Account A');
+        List<Contact> contacts = buildContacts(accountA.Id, 2, null);
+        contacts[0].Expected_Revenue__c = 50;
+
+        Test.startTest();
+        insert contacts;
+        Test.stopTest();
+
+        Assert.areEqual(50, getAccount('Account A').Expected_Revenue__c);
+    }
+
+    @IsTest
+    static void allBlankRevenueRollsUpToZero() {
+        Account accountA = getAccount('Account A');
+
+        Test.startTest();
+        insert buildContacts(accountA.Id, 2, null);
+        Test.stopTest();
+
+        accountA = getAccount('Account A');
+        Assert.areEqual(2, accountA.Number_of_Contacts__c);
+        Assert.areEqual(0, accountA.Expected_Revenue__c);
+    }
+
+    @IsTest
+    static void changingRevenueRecalculatesAccount() {
+        Account accountA = getAccount('Account A');
+        List<Contact> contacts = buildContacts(accountA.Id, 2, 100);
+        insert contacts;
+
+        Test.startTest();
+        contacts[0].Expected_Revenue__c = 250;
+        update contacts[0];
+        Test.stopTest();
+
+        accountA = getAccount('Account A');
+        Assert.areEqual(2, accountA.Number_of_Contacts__c);
+        Assert.areEqual(350, accountA.Expected_Revenue__c);
+    }
+
+    @IsTest
+    static void changingAccountRecalculatesBothAccounts() {
         Account accountA = getAccount('Account A');
         Account accountB = getAccount('Account B');
-        List<Contact> contacts = buildContacts(accountA.Id, 2);
+        List<Contact> contacts = buildContacts(accountA.Id, 2, 100);
         insert contacts;
 
         Test.startTest();
@@ -52,14 +102,18 @@ private class ContactTriggerHandlerTest {
         update contacts[0];
         Test.stopTest();
 
-        Assert.areEqual(1, getAccount('Account A').Number_of_Contacts__c);
-        Assert.areEqual(1, getAccount('Account B').Number_of_Contacts__c);
+        accountA = getAccount('Account A');
+        accountB = getAccount('Account B');
+        Assert.areEqual(1, accountA.Number_of_Contacts__c);
+        Assert.areEqual(100, accountA.Expected_Revenue__c);
+        Assert.areEqual(1, accountB.Number_of_Contacts__c);
+        Assert.areEqual(100, accountB.Expected_Revenue__c);
     }
 
     @IsTest
-    static void removingAccountFromContactDecrementsCount() {
+    static void removingAccountFromContactResetsRollups() {
         Account accountA = getAccount('Account A');
-        Contact contact = buildContacts(accountA.Id, 1)[0];
+        Contact contact = buildContacts(accountA.Id, 1, 100)[0];
         insert contact;
 
         Test.startTest();
@@ -67,29 +121,35 @@ private class ContactTriggerHandlerTest {
         update contact;
         Test.stopTest();
 
-        Assert.areEqual(0, getAccount('Account A').Number_of_Contacts__c);
+        accountA = getAccount('Account A');
+        Assert.areEqual(0, accountA.Number_of_Contacts__c);
+        Assert.areEqual(0, accountA.Expected_Revenue__c);
     }
 
     @IsTest
-    static void deleteAndUndeleteRecalculateCount() {
+    static void deleteAndUndeleteRecalculateRollups() {
         Account accountA = getAccount('Account A');
-        List<Contact> contacts = buildContacts(accountA.Id, 2);
+        List<Contact> contacts = buildContacts(accountA.Id, 2, 100);
         insert contacts;
 
         Test.startTest();
         delete contacts[0];
-        Assert.areEqual(1, getAccount('Account A').Number_of_Contacts__c);
+        accountA = getAccount('Account A');
+        Assert.areEqual(1, accountA.Number_of_Contacts__c);
+        Assert.areEqual(100, accountA.Expected_Revenue__c);
 
         undelete contacts[0];
         Test.stopTest();
 
-        Assert.areEqual(2, getAccount('Account A').Number_of_Contacts__c);
+        accountA = getAccount('Account A');
+        Assert.areEqual(2, accountA.Number_of_Contacts__c);
+        Assert.areEqual(200, accountA.Expected_Revenue__c);
     }
 
     @IsTest
     static void contactWithoutAccountIsIgnored() {
         Test.startTest();
-        insert new Contact(LastName = 'Private');
+        insert new Contact(LastName = 'Private', Expected_Revenue__c = 100);
         Test.stopTest();
 
         Assert.areEqual(0, getAccount('Account A').Number_of_Contacts__c);
