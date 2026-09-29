@@ -16,7 +16,7 @@ private class ContactTriggerHandlerTest {
             contacts.add(new Contact(
                 LastName = 'Test ' + i,
                 AccountId = accountId,
-                Expected_Revenue__c = expectedRevenue
+                Expected_Revenues__c = expectedRevenue
             ));
         }
         return contacts;
@@ -52,7 +52,7 @@ private class ContactTriggerHandlerTest {
     static void blankRevenueIsTreatedAsZero() {
         Account accountA = getAccount('Account A');
         List<Contact> contacts = buildContacts(accountA.Id, 2, null);
-        contacts[0].Expected_Revenue__c = 50;
+        contacts[0].Expected_Revenues__c = 50;
 
         Test.startTest();
         insert contacts;
@@ -81,7 +81,7 @@ private class ContactTriggerHandlerTest {
         insert contacts;
 
         Test.startTest();
-        contacts[0].Expected_Revenue__c = 250;
+        contacts[0].Expected_Revenues__c = 250;
         update contacts[0];
         Test.stopTest();
 
@@ -149,7 +149,7 @@ private class ContactTriggerHandlerTest {
     @IsTest
     static void contactWithoutAccountIsIgnored() {
         Test.startTest();
-        insert new Contact(LastName = 'Private', Expected_Revenue__c = 100);
+        insert new Contact(LastName = 'Private', Expected_Revenues__c = 100);
         Test.stopTest();
 
         Assert.areEqual(0, getAccount('Account A').Number_of_Contacts__c);

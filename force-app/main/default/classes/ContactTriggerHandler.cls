@@ -1,7 +1,7 @@
 /**
  * Keeps these Account rollups in sync with the Contacts related to each Account:
  *   - Number_of_Contacts__c: count of Contacts
- *   - Expected_Revenue__c:   sum of Contact.Expected_Revenue__c
+ *   - Expected_Revenue__c:   sum of Contact.Expected_Revenues__c
  *
  * Runs without sharing so the rollups include every Contact on the Account,
  * not just the ones visible to the running user.
@@ -19,7 +19,7 @@ public without sharing class ContactTriggerHandler {
         for (Contact newContact : newContacts) {
             Contact oldContact = oldContactsById.get(newContact.Id);
             if (newContact.AccountId != oldContact.AccountId
-                    || newContact.Expected_Revenue__c != oldContact.Expected_Revenue__c) {
+                    || newContact.Expected_Revenues__c != oldContact.Expected_Revenues__c) {
                 accountIds.add(newContact.AccountId);
                 accountIds.add(oldContact.AccountId);
             }
@@ -56,7 +56,7 @@ public without sharing class ContactTriggerHandler {
         }
 
         for (AggregateResult result : [
-            SELECT AccountId, COUNT(Id) contactCount, SUM(Expected_Revenue__c) expectedRevenue
+            SELECT AccountId, COUNT(Id) contactCount, SUM(Expected_Revenues__c) expectedRevenue
             FROM Contact
             WHERE AccountId IN :accountIds
             GROUP BY AccountId

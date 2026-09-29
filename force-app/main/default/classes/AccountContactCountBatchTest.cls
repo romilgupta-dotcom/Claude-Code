@@ -12,7 +12,7 @@ private class AccountContactCountBatchTest {
             contacts.add(new Contact(
                 LastName = 'Test ' + i,
                 AccountId = withContacts.Id,
-                Expected_Revenue__c = 100
+                Expected_Revenues__c = 100
             ));
         }
         insert contacts;
