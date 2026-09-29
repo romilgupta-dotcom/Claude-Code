@@ -49,3 +49,5 @@ How the pieces fit:
 ## Known issues & fixes
 
 Rules learned from past fixes (details in `docs/solutions/`). Add entries with `/log-fix`.
+
+- When a field is renamed or replaced, search all of `force-app` for the old API name, including JS/LWC/Aura strings and dynamic SOQL, then check the org for Flows, reports and integrations; the platform's dependency check misses string references ([details](docs/solutions/2026-09-contact-expected-revenues-rename.md)).
