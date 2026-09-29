@@ -45,3 +45,7 @@ How the pieces fit:
 - `ContactTriggerHandler.recalculateAccountRollups(Set<Id>)` is the single source of truth. It recomputes from an aggregate SOQL query rather than incrementing or decrementing, so values self-correct. It defaults each Account to 0 (so Accounts that lost their last Contact are reset) and treats a null `SUM` as 0.
 - `AccountContactCountBatch` reuses `recalculateAccountRollups`, so the batch and the trigger always calculate the same way. Any change to rollup logic belongs in that method.
 - Both classes are `without sharing`, so rollups count every Contact regardless of the running user's visibility.
+
+## Known issues & fixes
+
+Rules learned from past fixes (details in `docs/solutions/`). Add entries with `/log-fix`.
