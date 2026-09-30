@@ -16,6 +16,10 @@ Set up as a Python project, but it has no Python source, dependencies or tests y
 - Default branch: `main`.
 - Never commit `.env` files or virtual environments.
 
+## Salesforce development standards
+
+Every Apex change, test and review must follow the mandatory project rules in @docs/salesforce-development-standards.md.
+
 ## Salesforce commands
 
 ```bash
